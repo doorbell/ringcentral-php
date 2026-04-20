@@ -17,6 +17,19 @@ class PlatformTest extends TestCase
 
     }
 
+    public function testLoginWithPassword()
+    {
+        $sdk = $this->getSDK(
+            [
+                $this->authenticationMock(),
+            ],
+            false
+        );
+        $sdk->platform()->login('username', 'extension', 'password');
+        $authData = $sdk->platform()->auth()->data();
+        $this->assertTrue(!empty($authData['access_token']));
+    }
+
     public function testRefreshWithOutdatedToken()
     {
 
@@ -26,7 +39,7 @@ class PlatformTest extends TestCase
         $sdk = $this->getSDK();
 
         $sdk->platform()->auth()->setData([
-            'refresh_token_expires_in'  => 1,
+            'refresh_token_expires_in' => 1,
             'refresh_token_expire_time' => 1
         ]);
 
@@ -43,7 +56,7 @@ class PlatformTest extends TestCase
         ]);
 
         $sdk->platform()->auth()->setData([
-            'expires_in'  => 1,
+            'expires_in' => 1,
             'expire_time' => 1
         ]);
 
@@ -73,14 +86,16 @@ class PlatformTest extends TestCase
     public function testAuthUrl()
     {
         $sdk = $this->getSDK();
-	$url = $sdk->platform()->authUrl(array(
-	   'redirectUri' => 'foo',
-	   'state' => 'bar',
-	   'client_id' => 'baz'
-	));
-	$this->assertEquals( $url, "https://whatever/restapi/oauth/authorize?response_type=code&redirect_uri=foo&client_id=whatever&state=bar" );
+        $url = $sdk->platform()->authUrl(
+            array(
+                'redirectUri' => 'foo',
+                'state' => 'bar',
+                'client_id' => 'baz'
+            )
+        );
+        $this->assertEquals($url, "https://whatever/restapi/oauth/authorize?response_type=code&redirect_uri=foo&client_id=whatever&state=bar");
     }
-    
+
     public function testApiUrl()
     {
         $sdk = $this->getSDK();
@@ -90,7 +105,7 @@ class PlatformTest extends TestCase
             $sdk->platform()->createUrl('/account/~/extension/~', [
                 'addServer' => true,
                 'addMethod' => 'POST',
-                'addToken'  => true
+                'addToken' => true
             ])
         );
 
@@ -98,12 +113,12 @@ class PlatformTest extends TestCase
             'https://whatever/restapi/v1.0/account/~/extension/~',
             $sdk->platform()->createUrl('/account/~/extension/~', [
                 'addServer' => true
-	    ])
+            ])
         );
-	
+
         $this->assertEquals(
             'https://whatever/rcvideo/v2/account/~/extension/~/bridges',
-	    $sdk->platform()->createUrl('/rcvideo/v2/account/~/extension/~/bridges', [
+            $sdk->platform()->createUrl('/rcvideo/v2/account/~/extension/~/bridges', [
                 'addServer' => true
             ])
         );
@@ -111,6 +126,13 @@ class PlatformTest extends TestCase
         $this->assertEquals(
             'https://whatever/scim/v2/ServiceProviderConfig',
             $sdk->platform()->createUrl('/scim/v2/ServiceProviderConfig', [
+                'addServer' => true
+            ])
+        );
+
+        $this->assertEquals(
+            'https://whatever/cx/some-api',
+            $sdk->platform()->createUrl('/cx/some-api', [
                 'addServer' => true
             ])
         );
@@ -127,7 +149,7 @@ class PlatformTest extends TestCase
             $sdk->platform()->createUrl('https://foo/account/~/extension/~', [
                 'addServer' => true,
                 'addMethod' => 'POST',
-                'addToken'  => true
+                'addToken' => true
             ])
         );
 
@@ -142,7 +164,7 @@ class PlatformTest extends TestCase
 
         $request = $sdk->platform()->inflateRequest(new Request('GET', '/foo'));
 
-        $this->assertEquals('https://whatever/restapi/v1.0/foo', (string)$request->getUri());
+        $this->assertEquals('https://whatever/restapi/v1.0/foo', (string) $request->getUri());
 
         $this->assertEquals($request->getHeaderLine('User-Agent'), $request->getHeaderLine('RC-User-Agent'));
 
@@ -151,5 +173,55 @@ class PlatformTest extends TestCase
         $this->assertStringContainsString('SDKTests/' . SDK::VERSION, $request->getHeaderLine('User-Agent'));
 
     }
+
+    public function testDeleteWithBody()
+    {
+        $body = ["keepAssetsInInventory" => true, "records" => [["id" => "123"]]];
+        $sdk = $this->getSDK([
+            $this->createResponse('DELETE', '/restapi/v2/accounts/~/extensions', ["keepAssetsInInventory" => true, "records" => [["id" => "123"]]])
+        ]);
+        $response = $sdk->platform()->delete("/restapi/v2/accounts/~/extensions", $body);
+        $this->assertEquals($response->body(), json_encode($body));
+    }
+    public function testDeleteWithoutBody()
+    {
+        $sdk = $this->getSDK([
+            $this->createResponse('DELETE', '/restapi/v2/accounts/~/extensions', ["Success"])
+        ]);
+        $response = $sdk->platform()->delete("/restapi/v2/accounts/~/extensions");
+        $this->assertEquals($response->body(), json_encode(["Success"]));
+    }
+
+    public function testDeleteWithParamsBody()
+    {
+        $body = [
+            'param1' => 'value1',
+            'param2' => 'value2'
+        ];
+        $sdk = $this->getSDK([
+            $this->createResponse('DELETE', '/restapi/v2/accounts/~/extensions', [
+                'param1' => 'value1',
+                'param2' => 'value2'
+            ])
+        ]);
+        $response = $sdk->platform()->delete("/restapi/v2/accounts/~/extensions", [
+            'param1' => 'value1',
+            'param2' => 'value2'
+        ]);
+        $this->assertEquals($response->body(), json_encode($body));
+    }
+    public function testDeleteWithBodyWithParams()
+    {
+        $body = ["keepAssetsInInventory" => true, "records" => [["id" => "123"]]];
+        $sdk = $this->getSDK([
+            $this->createResponse('DELETE', '/restapi/v2/accounts/~/extensions', ["Success"])
+        ]);
+        $response = $sdk->platform()->delete("/restapi/v2/accounts/~/extensions", $body, [
+            'param1' => 'value1',
+            'param2' => 'value2'
+        ]);
+        $this->assertEquals($response->body(), json_encode(["Success"]));
+    }
+
 
 }

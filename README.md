@@ -1,14 +1,18 @@
 # RingCentral SDK for PHP
 
-[![Build Status](https://img.shields.io/travis/ringcentral/ringcentral-php/master.svg)](https://travis-ci.org/ringcentral/ringcentral-php)
+[![Build Status](https://github.com/ringcentral/ringcentral-php/workflows/CI%20Pipeline/badge.svg?branch=master)](https://github.com/ringcentral/ringcentral-php/actions)
 [![Coverage Status](https://coveralls.io/repos/ringcentral/ringcentral-php/badge.svg?branch=master&service=github)](https://coveralls.io/github/ringcentral/ringcentral-php?branch=master)
+[![Code Document](https://img.shields.io/badge/phpdoc-reference-blue?branch=master&service=github)](https://ringcentral.github.io/ringcentral-php/)
 [![Chat](https://img.shields.io/badge/chat-on%20glip-orange.svg)](https://glipped.herokuapp.com/)
 [![Twitter](https://img.shields.io/twitter/follow/ringcentraldevs.svg?style=social&label=follow)](https://twitter.com/RingCentralDevs)
 
 __[RingCentral Developers](https://developer.ringcentral.com/api-products)__ is a cloud communications platform which can be accessed via more than 70 APIs. The platform's main capabilities include technologies that enable:
 __[Voice](https://developer.ringcentral.com/api-products/voice), [SMS/MMS](https://developer.ringcentral.com/api-products/sms), [Fax](https://developer.ringcentral.com/api-products/fax), [Glip Team Messaging](https://developer.ringcentral.com/api-products/team-messaging), [Data and Configurations](https://developer.ringcentral.com/api-products/configuration)__.
 
-[API Reference](https://developer.ringcentral.com/api-docs/latest/index.html) and [APIs Explorer](https://developer.ringcentral.com/api-explorer/latest/index.html).
+## Additional resources
+
+* [RingCentral API Reference](https://developer.ringcentral.com/api-docs/latest/index.html) - an interactive reference for the RingCentral API that allows developers to make API calls with no code.
+* [Document](https://ringcentral.github.io/ringcentral-php/) - an interactive reference for the SDK code documentation.
 
 # Requirements
 
@@ -65,7 +69,7 @@ Please keep in mind that bundled dependencies may interfere with your other depe
 ## Initialization
 
 ```php
-$rcsdk = new RingCentral\SDK\SDK('clientId', 'clientSecret', RingCentral\SDK\SDK::SERVER_SANDBOX);
+$rcsdk = new RingCentral\SDK\SDK('clientId', 'clientSecret', RingCentral\SDK\SDK::SERVER_PRODUCTION);
 ```
 
 You also may supply custom AppName and AppVersion parameters with your application codename and version. These parameters
@@ -73,7 +77,7 @@ are optional but they will help a lot to identify your application in API logs a
 Allowed characters for AppName and AppVersion are: letters, digits, hyphen, dot and underscore.
 
 ```php
-$rcsdk = new RingCentral\SDK\SDK('clientId', 'clientSecret', RingCentral\SDK\SDK::SERVER_SANDBOX, 'MyApp', '1.0.0');
+$rcsdk = new RingCentral\SDK\SDK('clientId', 'clientSecret', RingCentral\SDK\SDK::SERVER_PRODUCTION, 'MyApp', '1.0.0');
 ```
 
 For production use `RingCentral\SDK\SDK::SERVER_PRODUCTION` constant. Or type in the server URL by hand.
@@ -86,10 +90,20 @@ Check authentication status:
 $rcsdk->platform()->loggedIn();
 ```
 
-Authenticate user:
+Authenticate user with jwt:
 
 ```php
-$rcsdk->platform()->login('username', 'extension (or leave blank)', 'password');
+$rcsdk->platform()->login([
+    'jwt' => 'your_jwt_token'
+]);
+```
+
+Authenticate user with authorization code:
+
+```php
+$rcsdk->platform()->login([
+    'code' => 'authorization code from RingCentral login redirect uri'
+]);
 ```
 
 ### Authentication lifecycle
@@ -206,15 +220,49 @@ $apiResponse = $rcsdk->platform()->post('/subscription', array(
 
 When webhook subscription is created, it will send a request with `validation-token` in headers to webhook address. Webhook address should return a success request with `validation-token` in headers to finish webhook register.
 
+## WebSocket Subscriptions
+
+```php
+use RingCentral\SDK\WebSocket\WebSocket;
+use RingCentral\SDK\WebSocket\Subscription;
+use RingCentral\SDK\WebSocket\Events\NotificationEvent;
+
+// connect websocket
+$websocket = $rcsdk->initWebSocket();
+$websocket->addListener(WebSocket::EVENT_READY, function (SuccessEvent $e) {
+    print 'Websocket Ready' . PHP_EOL;
+    print 'Connection Details' . print_r($e->apiResponse()->body(), true) . PHP_EOL;
+});
+$websocket->addListener(WebSocket::EVENT_ERROR, function (ErrorEvent $e) {
+    print 'Websocket Error' . PHP_EOL;
+});
+$websocket->connect();
+
+// create subscription
+$subscription = $rcsdk->createSubscription();
+$subscription->addEvents(array(
+    '/restapi/v1.0/account/~/extension/~/presence',
+    '/restapi/v1.0/account/~/extension/~/message-store/instant?type=SMS'
+));
+$subscription->addListener(Subscription::EVENT_NOTIFICATION, function (NotificationEvent $e) {
+    print 'Notification ' . print_r($e->payload(), true) . PHP_EOL;
+});
+$subscription->register();
+```
+
+We need to create websocket connection before creating subscription. When websocket connection get error, need to re-created websocket and subscription manually.
+
 ## PubNub Subscriptions
+
+This is **deprecated**, please use WebSocket Subscription.
 
 ```php
 use RingCentral\SDK\Subscription\Events\NotificationEvent;
-use RingCentral\SDK\Subscription\Subscription;
+use RingCentral\SDK\Subscription\PubnubSubscription;
 
-$subscription = $rcsdk->createSubscription();
+$subscription = $rcsdk->createSubscription('Pubnub);
 $subscription->addEvents(array('/restapi/v1.0/account/~/extension/~/presence'))
-$subscription->addListener(Subscription::EVENT_NOTIFICATION, function (NotificationEvent $e) {
+$subscription->addListener(PubnubSubscription::EVENT_NOTIFICATION, function (NotificationEvent $e) {
     print_r($e->payload());
 });
 $subscription->setKeepPolling(true);
@@ -254,7 +302,7 @@ return array(
     'password'     => 'yourPassword',
     'clientId'     => 'yourClientId',
     'clientSecret' => 'yourClientSecret',
-    'server'       => 'https://platform.devtest.ringcentral.com', // for production - https://platform.ringcentral.com
+    'server'       => 'https://platform.ringcentral.com', // for production - https://platform.ringcentral.com
     'smsNumber'    => '18882223344', // any of SMS-enabled numbers on your RingCentral account
     'mobileNumber' => '16501112233', // your own mobile number to which script will send sms
     'dateFrom'     => 'yyyy-mm-dd',
