@@ -11,8 +11,8 @@ class ApiException extends Exception
     private $_apiResponse;
 
     public function __construct(
-        ApiResponse $apiResponse = null,
-        Exception $previous = null
+        ?ApiResponse $apiResponse = null,
+        ?Exception $previous = null
     ) {
 
         $this->_apiResponse = $apiResponse;
