@@ -175,7 +175,7 @@ class Client
                     $body = json_encode($body);
                     break;
 
-                case 'application/x-www-form-urlencoded';
+                case 'application/x-www-form-urlencoded':
                     $body = http_build_query($body);
                     break;
 
