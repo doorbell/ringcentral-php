@@ -37,7 +37,7 @@ class ApiResponse
      * @param RequestInterface  $request  Reqeuest used to get the response
      * @param ResponseInterface $response Response
      */
-    public function __construct(RequestInterface $request = null, ResponseInterface $response = null)
+    public function __construct(?RequestInterface $request = null, ?ResponseInterface $response = null)
     {
 
         $this->_request = $request;
